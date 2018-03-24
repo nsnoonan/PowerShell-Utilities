@@ -66,7 +66,8 @@ param
     [int]$length
 )
 
-# function from http://activedirectoryfaq.com/2017/08/creating-individual-random-passwords/
+# function from Steve König
+# http://activedirectoryfaq.com/2017/08/creating-individual-random-passwords/
 function Get-RandomCharacters($length, $characters) { 
     $random = 1..$length | ForEach-Object { Get-Random -Maximum $characters.length } 
     $private:ofs = "" 
