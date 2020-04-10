@@ -32,6 +32,9 @@
 .Parameter Count
     Number of passwords to generate and return.  Defaults to 1 if not specified.
 
+.Parameter StopWatch
+    If switch is specified, time taken to generate password(s) will output to console.
+
 .Outputs
     * A password meeting the complexity requirements of the input.
     * Verbose output if the WriteHost switch is specified.
@@ -52,22 +55,27 @@
         * Added break to repeat detection logic to stop at first failure.
         v1.3 - 2018-03-14 / Zack Schwermer
         * Added count paramter to generate more than one password.
+        v1.4 - 2018-03-29 / Nick Noonan
+        * New Feature: output measurement of how long it took to execute.
+        v1.5 - 2020-02-13 / Nick Noonan
+        * New Feature: HEX switch for HEX output.
 #>
 
 param
 (
+    [Parameter(Mandatory = $true)]
+    [ValidateRange(1, 10000)]
+    [int]$length,
     [Switch]$ContainsNumber,
     [Switch]$ContainsSpecial,
     [Switch]$NumbersOnly,
+    [Switch]$HEX,
     [Switch]$WriteHost,
     [int]$Count = 1,
-    [Parameter(Mandatory = $true)]
-    [ValidateRange(1,10000)]
-    [int]$length
+    [Switch]$StopWatch
 )
 
-# function from Steve König
-# http://activedirectoryfaq.com/2017/08/creating-individual-random-passwords/
+# function from http://activedirectoryfaq.com/2017/08/creating-individual-random-passwords/
 function Get-RandomCharacters($length, $characters) { 
     $random = 1..$length | ForEach-Object { Get-Random -Maximum $characters.length } 
     $private:ofs = "" 
@@ -76,6 +84,7 @@ function Get-RandomCharacters($length, $characters) {
 
 $Lower = 'abcdefghiklmnoprstuvwxyz'
 $Upper = 'ABCDEFGHKLMNOPRSTUVWXYZ'
+$HexChars = 'ABCDEF'
 $Number = '0123456789'
 $Special = '!@#$%^&*()-=+_[]{}<>'
 
@@ -86,16 +95,19 @@ if ($ContainsNumber) { $Chars += $Number }
 if ($ContainsSpecial) { $Chars += $Special }
 # replace with numbers only if specified at run
 if ($NumbersOnly) { $Chars = $Number }
+# replace with HEX if specified at run
+if ($HEX) { $Chars = $HexChars + $Number }
 
 # generate and check until all checks pass and verified switch is true
 $verified = $false
 $PasswordList = @()
 $i = 0
+if ($StopWatch) { $StartTime = (Get-Date) }
 1..$Count | ForEach-Object {
     do {
         # get password
         $password = Get-RandomCharacters -length $length -characters $Chars
-        if ($WriteHost) {write-host "New password is: $password" -ForegroundColor Green -BackgroundColor Black}
+        if ($WriteHost) { write-host "New password is: $password" -ForegroundColor Green -BackgroundColor Black }
 
         # check for repeating characters, fail if 3 consecutive
         $PassArray = $password.ToCharArray()
@@ -104,19 +116,22 @@ $i = 0
         $RepeatVerify = $null
         foreach ($Char in $PassArray) {
             if ($Char -eq $LastChar -and $Char -eq $LastLastChar) {
-                if ($WriteHost) {write-host "illegal repeated character: $Char" -ForegroundColor Red -BackgroundColor Black}
+                if ($WriteHost) { write-host "illegal repeated character: $Char" -ForegroundColor Red -BackgroundColor Black }
                 $RepeatVerify = $False
+                if ($HEX) {
+                    $RepeatVerify = $true
+                }
                 break
             }
             else {
-                if ($WriteHost) {write-host "character $Char does not repeat with $LastChar and $LastLastChar"}
+                if ($WriteHost) { write-host "character $Char does not repeat with $LastChar and $LastLastChar" }
             }
             $LastLastChar = $LastChar
             $LastChar = $Char
         }
         # fail if RepeatVerify was set to false
         if ($RepeatVerify -eq $False) {
-            if ($WriteHost) {write-host "failed repeat verify" -ForegroundColor Red -BackgroundColor Black}
+            if ($WriteHost) { write-host "failed repeat verify" -ForegroundColor Red -BackgroundColor Black }
             continue
         }
 
@@ -125,51 +140,51 @@ $i = 0
         # if NumbersOnly is specified, confirm no non-numbers
         if ($NumbersOnly) {
             if ($password -match '[^0-9]') {
-                if ($WriteHost) {write-host "NumbersOnly contains illegal characters" -ForegroundColor Red -BackgroundColor Black}
+                if ($WriteHost) { write-host "NumbersOnly contains illegal characters" -ForegroundColor Red -BackgroundColor Black }
                 continue
             }
             else {
                 # if here, passed all checks and is successful
                 $verified = $true
-                if ($WriteHost) {write-host "passes all checks" -ForegroundColor Green -BackgroundColor Black}
+                if ($WriteHost) { write-host "passes all checks" -ForegroundColor Green -BackgroundColor Black }
             }
         }
         else {
         
             # confirm first character starts with a letter, skip if fail
             if ($password -cmatch "^[a-zA-Z]") {
-                if ($WriteHost) {write-host "starts with a letter"}
+                if ($WriteHost) { write-host "starts with a letter" }
             }
             else { 
-                if ($WriteHost) {write-host "does not start with a letter" -ForegroundColor Red -BackgroundColor Black}
-                continue
+                if ($WriteHost) { write-host "does not start with a letter" -ForegroundColor Red -BackgroundColor Black }
+                if (!($HEX)) { continue }
             }
 
             # check for lowercase, skip if fail
             if ($password -cmatch '[a-z]') {
-                if ($WriteHost) {write-host "contains [a-z]"}
+                if ($WriteHost) { write-host "contains [a-z]" }
             }
             else { 
-                if ($WriteHost) {write-host "does not contain [a-z]" -ForegroundColor Red -BackgroundColor Black}
-                continue
+                if ($WriteHost) { write-host "does not contain [a-z]" -ForegroundColor Red -BackgroundColor Black }
+                if (!($HEX)) { continue }
             }
     
             # check for uppercase, skip if fail
             if ($password -cmatch '[A-Z]') {
-                if ($WriteHost) {write-host "contains [A-Z]"}
+                if ($WriteHost) { write-host "contains [A-Z]" }
             }
             else { 
-                if ($WriteHost) {write-host "does not contain [A-Z]" -ForegroundColor Red -BackgroundColor Black}
+                if ($WriteHost) { write-host "does not contain [A-Z]" -ForegroundColor Red -BackgroundColor Black }
                 continue
             }
     
             # check for number if specified at run, skip if fail
             if ($ContainsNumber) {
                 if ($password -match '[0-9]') {
-                    if ($WriteHost) {write-host "contains [0-9]"}
+                    if ($WriteHost) { write-host "contains [0-9]" }
                 }
                 else { 
-                    if ($WriteHost) {write-host "does not contain [0-9]" -ForegroundColor Red -BackgroundColor Black}
+                    if ($WriteHost) { write-host "does not contain [0-9]" -ForegroundColor Red -BackgroundColor Black }
                     continue
                 }
             }
@@ -177,23 +192,23 @@ $i = 0
             # check for special if specified at run, skip if fail
             if ($ContainsSpecial) {
                 if ($password -match '[^a-zA-Z0-9]') {
-                    if ($WriteHost) {write-host "contains special"}
+                    if ($WriteHost) { write-host "contains special" }
                 }
                 else { 
-                    if ($WriteHost) {write-host "does not contain special" -ForegroundColor Red -BackgroundColor Black}
+                    if ($WriteHost) { write-host "does not contain special" -ForegroundColor Red -BackgroundColor Black }
                     continue
                 }
             }
     
             # if here, passed all checks and is successful
             $verified = $true
-            if ($WriteHost) {write-host "passes all checks" -ForegroundColor Green -BackgroundColor Black}
+            if ($WriteHost) { write-host "passes all checks" -ForegroundColor Green -BackgroundColor Black }
         }
     } while ($verified -ne $true)
 
     # return verfied good password
-    if ($WriteHost) {write-host "Final passowrd is: $password" -ForegroundColor Green -BackgroundColor Black}
-#    return $password
+    if ($WriteHost) { write-host "Final passowrd is: $password" -ForegroundColor Green -BackgroundColor Black }
+    #    return $password
     #Adding variable
     $Details = "" | Select-Object PasswordNumber, Password
     $Details.Password = $Password
@@ -201,5 +216,10 @@ $i = 0
     $Details.PasswordNumber = $i
     $PasswordList += $Details
 
+}
+
+if ($StopWatch) { 
+    $EndTime = (Get-Date)
+    write-host "Script took $($EndTime - $StartTime) to run."
 }
 return $PasswordList.Password
