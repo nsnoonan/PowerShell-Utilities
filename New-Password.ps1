@@ -40,11 +40,11 @@
     * Verbose output if the WriteHost switch is specified.
 
 .Example
-    .\Generate-Password.ps1 -length 15 -ContainsNumber -ContainsSpecial
-    .\Generate-Password.ps1 -length 8 -NumbersOnly -WriteHost
+    New-Password -length 20 -ContainsNumber -ContainsSpecial
+    New-Password -length 8 -NumbersOnly -WriteHost
 
 .Notes
-    SCRIPT:             New-Password.ps1
+    SCRIPT:             New-Password
     CREATE DATE:        2018-02-18
     CREATE AUTHOR:      Nick Noonan
     REV NOTES:
