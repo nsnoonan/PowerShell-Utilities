@@ -1,0 +1,1 @@
+testing running git status with powershell and acting on the output
